@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa de Intenciones</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+    #map {
+      height: 70vh;
+      width: 100%;
+    }
+    #formulario {
+      padding: 10px;
+      background: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #formulario input, #formulario textarea, #formulario button {
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="formulario">
+    <input type="text" id="nombre" placeholder="Tu nombre" required>
+    <textarea id="mensaje" rows="2" placeholder="Tu intención con emoji..." required></textarea>
+    <button onclick="enviarIntencion()">Enviar Intención</button>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    // Firebase SDK imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCDY3wqHnxemQ9BCENmQ2eDEM9kq8MYfA",
+      authDomain: "mapa-de-intenciones.firebaseapp.com",
+      projectId: "mapa-de-intenciones",
+      storageBucket: "mapa-de-intenciones.firebasestorage.app",
+      messagingSenderId: "976088070391",
+      appId: "1:976088070391:web:07f563d10cfcbba425bbf2",
+      measurementId: "G-EKS82XZTDL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Inicializar el mapa
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Cargar marcadores desde Firestore
+    const cargarIntenciones = async () => {
+      const querySnapshot = await getDocs(collection(db, "intenciones"));
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        L.marker([data.lat, data.lng]).addTo(map)
+          .bindPopup(`<b>${data.nombre}</b><br>${data.mensaje}`);
+      });
+    };
+
+    // Enviar nueva intención
+    window.enviarIntencion = async () => {
+      const nombre = document.getElementById("nombre").value.trim();
+      const mensaje = document.getElementById("mensaje").value.trim();
+      const centro = map.getCenter();
+      if (!nombre || !mensaje) {
+        alert("Por favor completa todos los campos.");
+        return;
+      }
+      try {
+        await addDoc(collection(db, "intenciones"), {
+          nombre,
+          mensaje,
+          lat: centro.lat,
+          lng: centro.lng
+        });
+        L.marker([centro.lat, centro.lng]).addTo(map)
+          .bindPopup(`<b>${nombre}</b><br>${mensaje}`).openPopup();
+        document.getElementById("nombre").value = "";
+        document.getElementById("mensaje").value = "";
+      } catch (error) {
+        console.error("Error al guardar la intención: ", error);
+      }
+    };
+
+    cargarIntenciones();
+  </script>
+</body>
+</html>
